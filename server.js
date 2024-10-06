@@ -53,36 +53,21 @@ app.post('/submit', (req, res) => {
     return res.status(403).send('Неверный токен авторизации');
   }
 
-  const { cab, light, projector, ac, door } = req.body;
+  const { cab, device, state } = req.body;
 
-  // Проверка наличия номера кабинета
-  if (cab === undefined) {
-    return res.status(400).send('Номер кабинета (cab) обязателен');
+  // Проверка наличия номера кабинета и устройства
+  if (cab === undefined || device === undefined || state === undefined) {
+    return res.status(400).send('Номер кабинета (cab), устройство (device) и состояние (state) обязательны');
   }
 
   // Подписка на топик кабинета при первом запросе
   subscribeToCabTopic(cab);
 
-  // Формируем объект сообщения только с указанными параметрами
-  const message = {};
-
-  if (light !== undefined) {
-    message.light = light;
-  }
-  if (projector !== undefined) {
-    message.projector = projector;
-  }
-  if (ac !== undefined) {
-    message.ac = ac;
-  }
-  if (door !== undefined) {
-    message.door = door;
-  }
-
-  // Проверяем, есть ли параметры для отправки
-  if (Object.keys(message).length === 0) {
-    return res.status(400).send('Не указаны параметры для отправки');
-  }
+  // Формируем сообщение
+  const message = {
+    device,
+    state
+  };
 
   // Проверяем подключение к MQTT
   if (!client.connected) {
