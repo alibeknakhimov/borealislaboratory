@@ -18,28 +18,41 @@ client.on('connect', () => {
   console.log('Connected to MQTT broker');
 });
 
-// Подписка на топик с номером кабинета
+// Массив подписанных топиков
+const subscribedTopics = new Set();
+
+// Функция подписки на топик с номером кабинета
 const subscribeToCabTopic = (cab) => {
   const topic = `cab${cab}`;
+
+  // Проверяем, если уже подписаны на топик
+  if (subscribedTopics.has(topic)) {
+    return; // Убираем вывод в консоль
+  }
+
   client.subscribe(topic, (err) => {
     if (!err) {
-      console.log(`Subscribed to topic ${topic}`);
-    } else {
-      console.error(`Ошибка подписки на топик ${topic}:`, err);
+      subscribedTopics.add(topic);
     }
   });
 };
-
-// Получение сообщений из топиков
-client.on('message', (topic, message) => {
-  console.log(`Message received on topic ${topic}: ${message.toString()}`);
-});
 
 // Middleware для обработки JSON
 app.use(express.json());
 
 // Маршрут для приема POST-запросов
 app.post('/submit', (req, res) => {
+  const token = req.headers['authorization'];
+
+  // Проверка авторизационного токена
+  if (!token) {
+    return res.status(401).send('Токен авторизации обязателен');
+  }
+
+  if (token !== 'aPz3HkLk93mqw0xZ') {
+    return res.status(403).send('Неверный токен авторизации');
+  }
+
   const { cab, light, projector, ac, door } = req.body;
 
   // Проверка наличия номера кабинета
@@ -71,13 +84,17 @@ app.post('/submit', (req, res) => {
     return res.status(400).send('Не указаны параметры для отправки');
   }
 
+  // Проверяем подключение к MQTT
+  if (!client.connected) {
+    return res.status(500).send('Нет соединения с MQTT-брокером');
+  }
+
   // Формируем топик с номером кабинета
   const topic = `cab${cab}`;
 
   // Публикация сообщения на топик с номером кабинета
   client.publish(topic, JSON.stringify(message), (err) => {
     if (err) {
-      console.error('Ошибка при отправке сообщения:', err);
       return res.status(500).send('Ошибка при отправке сообщения');
     }
 
